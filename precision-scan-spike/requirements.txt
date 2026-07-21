@@ -1,0 +1,9 @@
+# Core (required) — the error-measurement math runs on just these.
+numpy>=1.24
+scipy>=1.10
+
+# Optional — richer mesh IO (any format) and YAML configs.
+# The built-in reader covers ASCII/binary PLY and OBJ without these.
+# trimesh>=4.0
+# open3d>=0.18
+# pyyaml>=6.0

@@ -1,0 +1,7 @@
+runs/
+data/
+config.yaml
+config.json
+__pycache__/
+*.pyc
+.venv/

@@ -1,0 +1,48 @@
+# E1 validation run — copy to config.yaml and edit.
+# (A .json file with the same keys also works if you don't have PyYAML.)
+
+# ---- Inputs ----------------------------------------------------------------
+image_dir: data/widget/images        # folder of photos of the calibrated object
+reference_mesh: data/widget/gt.ply   # certified ground-truth surface, IN MILLIMETRES
+work_dir: runs/widget                 # all outputs land here
+
+# ---- Reconstruction backend ------------------------------------------------
+# See src/e1_harness/reconstruct.py::BACKENDS. For the accuracy CEILING run a
+# top method (pgsr / gaussurf); for the shippable BSD-clean baseline use colmap-mvs.
+backend: pgsr
+colmap_bin: colmap
+matcher: exhaustive                   # 'sequential' for video frames
+
+# The exact training command for your local backend checkout. Kept external so
+# no research/GPL training code is vendored into this repo. Placeholders:
+# {sparse} {images} {out}
+command_template: "python /repos/PGSR/train.py -s {sparse} --images {images} -m {out} && python /repos/PGSR/render.py -m {out} --mesh"
+
+# ---- Evaluation ------------------------------------------------------------
+# align_mode:
+#   rigid       -> ABSOLUTE error (the real E1 verdict). Needs metric scale below.
+#   similarity  -> shape-only diagnostic (scale fitted away). NOT a valid verdict.
+align_mode: rigid
+
+# Metric scale — how the up-to-scale reconstruction is put into millimetres.
+#   none      -> backend already outputs metric units
+#   bar       -> two marked endpoints of a scale bar of known length
+#   standard  -> a scanned gauge sphere of certified diameter (also reports form error)
+scale:
+  method: standard
+  true_diameter_mm: 25.4
+  standard_points_path: data/widget/gauge_sphere.ply
+  # For method: bar instead ->
+  # endpoint_a: [x, y, z]
+  # endpoint_b: [x, y, z]
+  # true_length_mm: 50.0
+
+n_samples: 500000                     # dense area-uniform samples per surface
+tolerances_mm: [0.05, 0.1, 0.25, 0.5, 1.0]
+
+# ---- Verdict ---------------------------------------------------------------
+# The vertical's tolerance. Examples: dental ~0.05-0.1 mm, jewellery ~0.1 mm,
+# general reverse-engineering ~0.25-0.5 mm.
+verdict_metric: chamfer_median        # or e.g. accuracy.p95 for tail-sensitive verticals
+threshold_mm: 0.1
+seed: 0
