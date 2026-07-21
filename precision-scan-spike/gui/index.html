@@ -41,7 +41,7 @@
   label{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
   input,select{
     background:var(--panel2);border:1px solid var(--line2);color:var(--ink);border-radius:8px;
-    padding:9px 11px;font-family:var(--mono);font-size:12.5px;width:100%;
+    padding:9px 11px;font-family:var(--mono);font-size:12.5px;width:100%;text-overflow:ellipsis;
   }
   input:focus,select:focus{outline:none;border-color:var(--teal-dim);box-shadow:0 0 0 3px rgba(42,195,206,.12)}
   .with-btn{display:flex;gap:6px}
@@ -133,7 +133,7 @@
       <div class="group">
         <label>Backend</label>
         <select id="backend">
-          <option value="colmap-mvs">COLMAP dense MVS + Poisson — BSD, native Windows ✓</option>
+          <option value="colmap-mvs">COLMAP dense MVS + Poisson (BSD ✓)</option>
           <option value="pgsr">PGSR — 0.52 mm ceiling (research)</option>
           <option value="gaussurf">GausSurf — 0.52 mm (research)</option>
           <option value="rade-gs">RaDe-GS — 0.68 mm (research)</option>
@@ -153,8 +153,8 @@
       <div class="group">
         <label>Alignment mode</label>
         <select id="align_mode">
-          <option value="rigid">rigid — ABSOLUTE error (real verdict)</option>
-          <option value="similarity">similarity — shape only (diagnostic)</option>
+          <option value="rigid">rigid · absolute error (verdict)</option>
+          <option value="similarity">similarity · shape only (diagnostic)</option>
         </select>
       </div>
       <div class="group">
@@ -227,9 +227,18 @@
 </main>
 
 <script type="module">
-import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
-import { OrbitControls } from "https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js";
-import { PLYLoader } from "https://unpkg.com/three@0.160.0/examples/jsm/loaders/PLYLoader.js";
+// three.js loads LAZILY (only for the 3D viewer). If the CDN is blocked or
+// offline, the form, Run controls, pickers and metrics still work — only the
+// 3D preview is skipped. Never let a viewer dependency break the tool.
+let THREE, OrbitControls, PLYLoader, _three = false;
+async function ensureThree() {
+  if (_three) return true;
+  const base = "https://unpkg.com/three@0.160.0";
+  THREE = await import(base + "/build/three.module.js");
+  ({ OrbitControls } = await import(base + "/examples/jsm/controls/OrbitControls.js"));
+  ({ PLYLoader } = await import(base + "/examples/jsm/loaders/PLYLoader.js"));
+  _three = true; return true;
+}
 
 const $ = (id) => document.getElementById(id);
 
@@ -370,6 +379,9 @@ function resize(){
   camera.aspect=w/h;camera.updateProjectionMatrix();
 }
 async function loadHeatmap(){
+  try{ await ensureThree(); }
+  catch(e){ const v=$("vempty"); v.style.display="flex";
+    v.textContent="3D viewer needs internet for three.js — the verdict & metrics above are complete."; return; }
   try{
     const txt=await (await fetch("/heatmap.ply?_="+Date.now())).text();
     if(!txt.startsWith("ply")) return;
