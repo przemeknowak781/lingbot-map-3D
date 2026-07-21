@@ -26,8 +26,8 @@ class ScaleConfig:
 @dataclass
 class Config:
     # Inputs
-    image_dir: str
-    reference_mesh: str            # certified ground-truth surface, in mm
+    image_dir: str = ""            # required for the COLMAP path; unused when re-scoring a mesh
+    reference_mesh: str = ""       # certified ground-truth surface, in mm (required to score)
     work_dir: str = "runs/e1"
 
     # Reconstruction backend (see reconstruct.BACKENDS)
@@ -51,10 +51,17 @@ class Config:
 
     @staticmethod
     def load(path: str | Path) -> "Config":
-        data = _read_structured(Path(path))
+        return Config.from_dict(_read_structured(Path(path)))
+
+    @staticmethod
+    def from_dict(data: dict[str, Any]) -> "Config":
+        data = dict(data)  # don't mutate the caller's dict
         scale = ScaleConfig(**data.pop("scale", {}))
-        if "tolerances_mm" in data:
+        if "tolerances_mm" in data and data["tolerances_mm"] is not None:
             data["tolerances_mm"] = tuple(data["tolerances_mm"])
+        # Drop unknown/empty keys so a loosely-built GUI payload still loads.
+        known = Config.__dataclass_fields__.keys()
+        data = {k: v for k, v in data.items() if k in known and v is not None}
         return Config(scale=scale, **data)
 
 

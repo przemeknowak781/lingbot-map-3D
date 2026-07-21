@@ -37,6 +37,11 @@ def run(cfg: Config, *, skip_reconstruction: Path | None = None) -> dict:
     ``skip_reconstruction`` lets you point straight at an already-produced mesh
     (e.g. re-scoring a backend output) and skip the COLMAP + GS stages.
     """
+    if not cfg.reference_mesh:
+        raise ValueError("reference_mesh is required — the certified ground-truth surface (mm).")
+    if skip_reconstruction is None and not cfg.image_dir:
+        raise ValueError("image_dir is required unless you re-score an existing mesh.")
+
     work = Path(cfg.work_dir)
     work.mkdir(parents=True, exist_ok=True)
 

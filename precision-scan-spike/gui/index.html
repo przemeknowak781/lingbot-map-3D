@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>E1 · Absolute Accuracy Harness</title>
+<style>
+  :root{
+    --bg:#0b0f11; --panel:#121a1d; --panel2:#0f171a; --line:#223034; --line2:#2e3f44;
+    --ink:#e7eff1; --soft:#9fb0b6; --faint:#6b7c83; --teal:#2ac3ce; --teal-dim:#15757e;
+    --good:#4fb37e; --bad:#e0685c; --amber:#d89b3e;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;
+    background-image:linear-gradient(rgba(42,195,206,.03) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(42,195,206,.03) 1px,transparent 1px);
+    background-size:32px 32px;-webkit-font-smoothing:antialiased;
+  }
+  header{
+    display:flex;align-items:center;gap:16px;padding:14px 22px;border-bottom:1px solid var(--line);
+    background:rgba(11,15,17,.85);backdrop-filter:blur(6px);position:sticky;top:0;z-index:5;
+  }
+  .brand{font-weight:700;letter-spacing:-.01em;font-size:15px}
+  .brand .e1{font-family:var(--mono);color:var(--teal);margin-right:8px}
+  .brand small{display:block;font-weight:400;color:var(--faint);font-size:11px;letter-spacing:.04em}
+  .pill{margin-left:auto;font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.1em;
+    padding:5px 12px;border-radius:20px;border:1px solid var(--line2);color:var(--soft);display:flex;align-items:center;gap:7px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--faint)}
+  .pill.running .dot{background:var(--amber);animation:pulse 1s infinite}
+  .pill.done .dot{background:var(--good)} .pill.error .dot{background:var(--bad)}
+  @keyframes pulse{50%{opacity:.3}}
+
+  main{display:grid;grid-template-columns:380px 1fr;gap:0;min-height:calc(100vh - 57px)}
+  .config{border-right:1px solid var(--line);padding:20px;display:flex;flex-direction:column;gap:16px;overflow-y:auto}
+  .results{padding:22px;display:flex;flex-direction:column;gap:20px;min-width:0}
+
+  .group{display:flex;flex-direction:column;gap:6px}
+  label{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+  input,select{
+    background:var(--panel2);border:1px solid var(--line2);color:var(--ink);border-radius:8px;
+    padding:9px 11px;font-family:var(--mono);font-size:12.5px;width:100%;
+  }
+  input:focus,select:focus{outline:none;border-color:var(--teal-dim);box-shadow:0 0 0 3px rgba(42,195,206,.12)}
+  .with-btn{display:flex;gap:6px}
+  .with-btn input{flex:1;min-width:0}
+  button{font-family:var(--sans);cursor:pointer;border-radius:8px;border:1px solid var(--line2);
+    background:var(--panel);color:var(--ink);padding:9px 12px;font-size:12.5px;transition:.15s}
+  button:hover{border-color:var(--teal-dim)}
+  .browse{padding:9px 10px;color:var(--soft);white-space:nowrap}
+  .run{background:var(--teal);color:#04222a;font-weight:700;border:none;padding:12px;font-size:14px;letter-spacing:.02em}
+  .run:hover{background:#3ad3de}
+  .run:disabled{opacity:.5;cursor:not-allowed}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .hint{color:var(--faint);font-size:11px;font-family:var(--mono)}
+  fieldset{border:1px solid var(--line);border-radius:10px;padding:14px;margin:0;display:flex;flex-direction:column;gap:12px}
+  legend{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);padding:0 6px}
+  .hidden{display:none}
+
+  /* verdict */
+  .verdict{border:1px solid var(--line);border-radius:12px;padding:22px;background:var(--panel);
+    display:flex;align-items:center;gap:20px}
+  .verdict.pass{border-color:rgba(79,179,126,.5);box-shadow:0 0 30px rgba(79,179,126,.08)}
+  .verdict.fail{border-color:rgba(224,104,92,.5);box-shadow:0 0 30px rgba(224,104,92,.08)}
+  .verdict .big{font-size:34px;font-weight:800;letter-spacing:-.02em;font-family:var(--mono)}
+  .verdict.pass .big{color:var(--good)} .verdict.fail .big{color:var(--bad)}
+  .verdict .meta{display:flex;flex-direction:column;gap:3px}
+  .verdict .val{font-family:var(--mono);font-size:20px;font-weight:700}
+  .verdict .sub{color:var(--soft);font-size:12.5px}
+  .warnbar{margin-top:2px;font-size:12px;color:var(--amber);font-family:var(--mono)}
+  .placeholder{color:var(--faint);text-align:center;padding:40px;border:1px dashed var(--line2);border-radius:12px}
+
+  /* metrics */
+  .card{border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:hidden}
+  .card h3{margin:0;padding:12px 16px;font-size:12px;font-family:var(--mono);letter-spacing:.08em;
+    text-transform:uppercase;color:var(--soft);border-bottom:1px solid var(--line);background:var(--panel2)}
+  table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px;font-variant-numeric:tabular-nums}
+  th,td{text-align:right;padding:9px 16px;border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left;color:var(--soft)}
+  thead th{color:var(--faint);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em}
+  tbody tr:last-child td{border-bottom:none}
+  .tol{padding:14px 16px;display:flex;flex-direction:column;gap:9px}
+  .tolrow{display:grid;grid-template-columns:52px 1fr 52px;align-items:center;gap:10px;font-family:var(--mono);font-size:11.5px}
+  .bar{height:8px;border-radius:4px;background:var(--panel2);overflow:hidden}
+  .bar > i{display:block;height:100%;background:linear-gradient(90deg,var(--teal-dim),var(--teal));border-radius:4px}
+
+  /* viewer */
+  .viewer{position:relative;height:380px;background:radial-gradient(circle at 50% 40%,#0f171a,#080c0d);
+    border-radius:12px;border:1px solid var(--line);overflow:hidden}
+  #gl{width:100%;height:100%;display:block}
+  .vhud{position:absolute;left:14px;top:12px;font-family:var(--mono);font-size:11px;color:var(--soft)}
+  .legend{position:absolute;right:14px;bottom:12px;font-family:var(--mono);font-size:10px;color:var(--soft);
+    display:flex;align-items:center;gap:8px}
+  .legend .ramp{width:120px;height:9px;border-radius:5px;
+    background:linear-gradient(90deg,#31369b,#4575b4,#74add1,#ffffbf,#fdae61,#f46d43,#a50026)}
+  .vbtn{position:absolute;right:12px;top:10px}
+  .vempty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:12px}
+
+  /* log */
+  .console{background:#070b0c;border:1px solid var(--line);border-radius:12px;font-family:var(--mono);
+    font-size:12px;color:#b9cace;padding:12px 14px;height:180px;overflow-y:auto;white-space:pre-wrap;line-height:1.55}
+  .console .warn{color:var(--amber)} .console .err{color:var(--bad)} .console .ok{color:var(--good)}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="e1">E1</span>Absolute Accuracy Harness<small>surface-aligned GS · absolute mm error · go / no-go</small></div>
+  <div class="pill" id="pill"><span class="dot"></span><span id="pillText">idle</span></div>
+</header>
+
+<main>
+  <!-- CONFIG -->
+  <section class="config">
+    <div class="group">
+      <label>Images folder</label>
+      <div class="with-btn"><input id="image_dir" placeholder="C:\scans\widget\images" />
+        <button class="browse" data-pick="dir" data-target="image_dir">Browse</button></div>
+    </div>
+    <div class="group">
+      <label>Reference mesh (mm, ground truth)</label>
+      <div class="with-btn"><input id="reference_mesh" placeholder="C:\scans\widget\gt.ply" />
+        <button class="browse" data-pick="file" data-target="reference_mesh">Browse</button></div>
+    </div>
+    <div class="group">
+      <label>Work dir (outputs)</label>
+      <input id="work_dir" value="runs/widget" />
+    </div>
+
+    <fieldset>
+      <legend>Reconstruction</legend>
+      <div class="group">
+        <label>Backend</label>
+        <select id="backend">
+          <option value="colmap-mvs">COLMAP dense MVS + Poisson — BSD, native Windows ✓</option>
+          <option value="pgsr">PGSR — 0.52 mm ceiling (research)</option>
+          <option value="gaussurf">GausSurf — 0.52 mm (research)</option>
+          <option value="rade-gs">RaDe-GS — 0.68 mm (research)</option>
+          <option value="gof">GOF — 0.74 mm (non-commercial)</option>
+          <option value="2dgs">2D Gaussian Splatting — 0.80 mm</option>
+        </select>
+      </div>
+      <div class="group">
+        <label>Re-score existing mesh (skip COLMAP + backend)</label>
+        <div class="with-btn"><input id="reuse_mesh" placeholder="optional — path to a .ply / .obj" />
+          <button class="browse" data-pick="file" data-target="reuse_mesh">Browse</button></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Evaluation</legend>
+      <div class="group">
+        <label>Alignment mode</label>
+        <select id="align_mode">
+          <option value="rigid">rigid — ABSOLUTE error (real verdict)</option>
+          <option value="similarity">similarity — shape only (diagnostic)</option>
+        </select>
+      </div>
+      <div class="group">
+        <label>Metric scale</label>
+        <select id="scale_method">
+          <option value="none">none — backend already metric</option>
+          <option value="standard">gauge sphere (certified Ø)</option>
+          <option value="bar">scale bar (known length)</option>
+        </select>
+      </div>
+      <div id="scale_standard" class="group hidden">
+        <label>Sphere Ø (mm) · points file</label>
+        <div class="row2">
+          <input id="true_diameter_mm" type="number" step="0.01" placeholder="25.4" />
+          <button class="browse" data-pick="file" data-target="standard_points_path">Pick sphere .ply</button>
+        </div>
+        <input id="standard_points_path" placeholder="C:\scans\widget\gauge.ply" />
+      </div>
+      <div id="scale_bar" class="group hidden">
+        <label>Bar length (mm) · endpoints A / B (x,y,z)</label>
+        <input id="true_length_mm" type="number" step="0.01" placeholder="50.0" />
+        <div class="row2">
+          <input id="endpoint_a" placeholder="A: 0,0,0" />
+          <input id="endpoint_b" placeholder="B: 0,0,2" />
+        </div>
+      </div>
+      <div class="row2">
+        <div class="group"><label>Samples</label><input id="n_samples" type="number" value="500000" /></div>
+        <div class="group"><label>Threshold (mm)</label><input id="threshold_mm" type="number" step="0.01" value="0.1" /></div>
+      </div>
+      <div class="group">
+        <label>Verdict metric</label>
+        <select id="verdict_metric">
+          <option value="chamfer_median">chamfer_median (robust)</option>
+          <option value="chamfer_mean">chamfer_mean</option>
+          <option value="accuracy.p95">accuracy.p95 (tail-sensitive)</option>
+          <option value="accuracy.mean">accuracy.mean</option>
+        </select>
+      </div>
+    </fieldset>
+
+    <button class="run" id="runBtn">▶ Run E1</button>
+    <div class="hint" id="hint">COLMAP + backend run externally on your machine.</div>
+  </section>
+
+  <!-- RESULTS -->
+  <section class="results">
+    <div id="verdictWrap">
+      <div class="placeholder">Configure a run and press <b>Run E1</b>. The verdict, metrics and 3D error heatmap appear here.</div>
+    </div>
+
+    <div id="metricsWrap"></div>
+
+    <div class="card">
+      <h3>Error heatmap · reconstruction coloured by distance to reference</h3>
+      <div class="viewer">
+        <canvas id="gl"></canvas>
+        <div class="vhud">drag rotate · scroll zoom</div>
+        <button class="browse vbtn" id="reloadHeatmap">Reload</button>
+        <div class="legend"><span>0</span><span class="ramp"></span><span id="legendMax">thr</span></div>
+        <div class="vempty" id="vempty">no heatmap yet</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Live log</h3>
+      <div class="console" id="console">idle — waiting for a run.</div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+import { OrbitControls } from "https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js";
+import { PLYLoader } from "https://unpkg.com/three@0.160.0/examples/jsm/loaders/PLYLoader.js";
+
+const $ = (id) => document.getElementById(id);
+
+// ---- native pickers ----
+document.querySelectorAll("[data-pick]").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    const kind = btn.dataset.pick;
+    btn.textContent = "…";
+    try {
+      const r = await fetch(kind === "dir" ? "/pick-dir" : "/pick-file");
+      const j = await r.json();
+      if (j.path) $(btn.dataset.target).value = j.path;
+      else if (!j.available) alert("Native picker unavailable here — paste the path manually.");
+    } catch { alert("Picker failed — paste the path manually."); }
+    btn.textContent = btn.classList.contains("vbtn") ? "Reload" : "Browse";
+  });
+});
+
+// ---- scale method toggle ----
+$("scale_method").addEventListener("change", (e) => {
+  $("scale_standard").classList.toggle("hidden", e.target.value !== "standard");
+  $("scale_bar").classList.toggle("hidden", e.target.value !== "bar");
+});
+
+// ---- build payload ----
+function parseVec(s){ return s.split(",").map(Number).filter(v=>!Number.isNaN(v)); }
+function buildPayload() {
+  const m = $("scale_method").value;
+  const scale = { method: m };
+  if (m === "standard") {
+    scale.true_diameter_mm = parseFloat($("true_diameter_mm").value);
+    scale.standard_points_path = $("standard_points_path").value.trim();
+  } else if (m === "bar") {
+    scale.true_length_mm = parseFloat($("true_length_mm").value);
+    scale.endpoint_a = parseVec($("endpoint_a").value);
+    scale.endpoint_b = parseVec($("endpoint_b").value);
+  }
+  const p = {
+    image_dir: $("image_dir").value.trim() || "unused",
+    reference_mesh: $("reference_mesh").value.trim(),
+    work_dir: $("work_dir").value.trim() || "runs/e1",
+    backend: $("backend").value,
+    align_mode: $("align_mode").value,
+    scale,
+    n_samples: parseInt($("n_samples").value, 10),
+    threshold_mm: parseFloat($("threshold_mm").value),
+    verdict_metric: $("verdict_metric").value,
+  };
+  const reuse = $("reuse_mesh").value.trim();
+  if (reuse) p.reuse_mesh = reuse;
+  return p;
+}
+
+// ---- run + poll ----
+let polling = null;
+$("runBtn").addEventListener("click", async () => {
+  const p = buildPayload();
+  if (!p.reference_mesh) { alert("Reference mesh is required."); return; }
+  $("runBtn").disabled = true;
+  $("console").textContent = "";
+  $("verdictWrap").innerHTML = `<div class="placeholder">Running…</div>`;
+  $("metricsWrap").innerHTML = "";
+  try {
+    const r = await fetch("/run", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(p)});
+    const j = await r.json();
+    if (j.error) { alert(j.error); $("runBtn").disabled=false; return; }
+    polling = setInterval(poll, 700);
+  } catch { alert("Could not reach server."); $("runBtn").disabled=false; }
+});
+
+function setPill(status){
+  const pill=$("pill"); pill.className="pill "+status;
+  $("pillText").textContent=status;
+}
+function renderLog(lines){
+  const c=$("console");
+  c.innerHTML = lines.map(l=>{
+    const cls = /ERROR|FAIL/.test(l)?"err":/VERDICT|PASS/.test(l)?"ok":/!|⚠/.test(l)?"warn":"";
+    return cls?`<span class="${cls}">${escapeHtml(l)}</span>`:escapeHtml(l);
+  }).join("\n") || "…";
+  c.scrollTop=c.scrollHeight;
+}
+function escapeHtml(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+
+async function poll(){
+  const j = await (await fetch("/status")).json();
+  setPill(j.status);
+  renderLog(j.log);
+  if (j.status==="done"){ clearInterval(polling); $("runBtn").disabled=false; renderReport(j.report); loadHeatmap(); }
+  if (j.status==="error"){ clearInterval(polling); $("runBtn").disabled=false;
+    $("verdictWrap").innerHTML=`<div class="verdict fail"><div class="big">ERR</div><div class="meta"><div class="val">Run failed</div><div class="sub">see the log below</div></div></div>`; }
+}
+
+function renderReport(r){
+  const v=r.verdict, pass=v.passed;
+  const warn = r.absolute ? "" : `<div class="warnbar">⚠ similarity mode — shape only, not a valid absolute verdict</div>`;
+  const b=r.backend, clean = b.commercial_clean ? "clean ✓" : "research-only ⚠";
+  $("verdictWrap").innerHTML = `
+    <div class="verdict ${pass?'pass':'fail'}">
+      <div class="big">${pass?'PASS':'FAIL'}</div>
+      <div class="meta">
+        <div class="val">${v.metric} = ${v.value_mm} mm</div>
+        <div class="sub">threshold ${v.threshold_mm} mm · ${b.name} (${clean}) · ${r.align_mode}</div>
+        ${warn}
+      </div>
+    </div>`;
+  const a=r.error_mm.accuracy, c=r.error_mm.completeness;
+  const trow=(name,o)=>`<tr><td>${name}</td><td>${o.mean}</td><td>${o.median}</td><td>${o.p95}</td><td>${o.p99}</td><td>${o.max}</td></tr>`;
+  const tol=a.within_pct;
+  const tolrows=Object.entries(tol).map(([k,val])=>`
+    <div class="tolrow"><span>${k}</span><div class="bar"><i style="width:${val}%"></i></div><span>${val}%</span></div>`).join("");
+  $("metricsWrap").innerHTML = `
+    <div class="card">
+      <h3>Error (mm) · Chamfer mean ${r.error_mm.chamfer_mean} · median ${r.error_mm.chamfer_median}</h3>
+      <table><thead><tr><th>direction</th><th>mean</th><th>median</th><th>p95</th><th>p99</th><th>max</th></tr></thead>
+      <tbody>${trow("accuracy",a)}${trow("completeness",c)}</tbody></table>
+      <div class="tol">${tolrows}</div>
+    </div>`;
+  $("legendMax").textContent = v.threshold_mm+" mm";
+}
+
+// ---- three.js heatmap ----
+let renderer,scene,camera,controls,cloud;
+function initGL(){
+  const cv=$("gl");
+  renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
+  scene=new THREE.Scene();
+  camera=new THREE.PerspectiveCamera(45,1,0.001,10000);
+  controls=new OrbitControls(camera,cv);
+  controls.enableDamping=true;
+  resize();
+  window.addEventListener("resize",resize);
+  (function loop(){requestAnimationFrame(loop);controls.update();renderer.render(scene,camera);})();
+}
+function resize(){
+  const cv=$("gl"),w=cv.clientWidth,h=cv.clientHeight;
+  renderer.setPixelRatio(window.devicePixelRatio||1);renderer.setSize(w,h,false);
+  camera.aspect=w/h;camera.updateProjectionMatrix();
+}
+async function loadHeatmap(){
+  try{
+    const txt=await (await fetch("/heatmap.ply?_="+Date.now())).text();
+    if(!txt.startsWith("ply")) return;
+    if(!renderer) initGL();
+    const geo=new PLYLoader().parse(txt);
+    geo.computeBoundingBox(); const bb=geo.boundingBox, ctr=new THREE.Vector3(); bb.getCenter(ctr);
+    geo.translate(-ctr.x,-ctr.y,-ctr.z);
+    const r=bb.getSize(new THREE.Vector3()).length()/2||1;
+    if(cloud) scene.remove(cloud);
+    const mat=new THREE.PointsMaterial({size:r/220,vertexColors:true});
+    cloud=new THREE.Points(geo,mat); scene.add(cloud);
+    camera.position.set(r*1.6,r*1.1,r*1.9); controls.target.set(0,0,0);
+    $("vempty").style.display="none";
+  }catch(e){ /* leave the empty state */ }
+}
+$("reloadHeatmap").addEventListener("click",loadHeatmap);
+
+// pick up an existing run on load (e.g. after refresh)
+poll().catch(()=>{});
+</script>
+</body>
+</html>

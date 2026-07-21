@@ -74,7 +74,27 @@ hygiene — see the decision doc, edge E2):
 - A **reconstruction backend** checkout (PGSR / GausSurf / 2DGS / …) *or*
   COLMAP dense MVS for the BSD-clean baseline.
 
-## Run
+## GUI (Windows-friendly)
+
+A local, instrument-style control panel — no cloud, standard-library server, no
+extra pip installs:
+
+```bash
+python gui/server.py          # opens http://localhost:8000 in your browser
+```
+
+On Windows just double-click **`run_gui.bat`**. The GUI lets you pick the
+images/reference with **native OS file dialogs**, choose a backend, run, watch
+the **live log**, read the **PASS/FAIL verdict** and metrics, and orbit the
+**3D error heatmap** (reconstruction coloured by distance to reference — red is
+out of tolerance). Tip: point *Re-score existing mesh* at a `.ply` to skip
+COLMAP entirely and just measure an already-produced mesh.
+
+> The 3D viewer loads three.js from a CDN on first use (needs internet once);
+> everything else runs fully offline. The verdict/metrics work even if the
+> viewer can't load.
+
+## Run (CLI)
 
 ```bash
 cp config.example.yaml config.yaml     # edit paths, backend, scale, threshold
@@ -142,6 +162,10 @@ src/e1_harness/
   report.py       JSON + Markdown report
   pipeline.py     orchestration
   cli.py          `python -m e1_harness.cli`
+gui/
+  server.py       stdlib local server + native file pickers
+  index.html      instrument-style UI + 3D heatmap viewer (three.js)
+run_gui.bat       Windows double-click launcher
 tests/test_core.py
 scripts/capture_guide.md
 ```
